@@ -11,7 +11,7 @@ IF %ERRORLEVEL% EQU 0 (
 
     mkdir "coverage"
 
-    gcovr -r . --html --html-details -o ./coverage/coverage_report.html ^
+    gcovr -r . --html-details -o ./coverage/coverage_report.html ^
         --exclude ".pio" ^
         --exclude "test" ^
         --exclude "lib/dbc"

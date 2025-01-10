@@ -57,6 +57,7 @@ void loop() {
     } else if(down.pressed()) {
         can.broadcast(false, true, clutchRight.travel(), 0);
     } else {
+        // Broadcast clutch every 10 ms
         static unsigned long lastBroadastTime = 0;
         if(millis() - lastBroadastTime < 10) return;
 
