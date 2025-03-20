@@ -4,7 +4,7 @@ on: ["push", "pull_request"]
 
 jobs:
   build-and-test:
-    runs-on: windows-latest 
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
@@ -28,13 +28,13 @@ jobs:
           pip install --upgrade platformio gcovr coveralls
         
       - name: Run tests
-        run: pio test -v -e native
+        run: pio test -v -e test
 
       - name: Generate coverage Report
         run: |
-          gcovr -r . --coveralls -o coverage.json `
-            --exclude ".pio" `
-            --exclude "test" `
+          gcovr -r . --coveralls -o coverage.json \
+            --exclude ".pio" \
+            --exclude "test" \
             --exclude "lib/dbc"
 
       - name: Upload to Coveralls
