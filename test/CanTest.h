@@ -2,35 +2,43 @@
 #define CAN_TEST_H
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <Arduino.h>
 #include "../lib/Can/Can.h"
-#include "mock/MockFlexCAN_T4.h"
+#include "mock/MockAdafruit_MCP2515.h"
+#include <vector>
 
 using namespace fakeit;
 
 class CanTest : public ::testing::Test {
   protected:
-    Mock<FlexCAN_T4<CAN1, RX_SIZE_16, TX_SIZE_16>> mockInterface;
-    FlexCAN_T4<CAN1, RX_SIZE_16, TX_SIZE_16>& interface;
+    Mock<Adafruit_MCP2515> mockMcp;
+    Adafruit_MCP2515& mcp;
 
     Mock<AnalogInput> mockClutchRight;
     AnalogInput& clutchRight;
 
+    Mock<AnalogInput> mockClutchLeft;
+    AnalogInput& clutchLeft;
+
     Can can;
 
     CanTest() :
-        interface(mockInterface.get()),
+        mcp(mockMcp.get()),
         clutchRight(mockClutchRight.get()),
-        can(interface, clutchRight) {
+        clutchLeft(mockClutchLeft.get()),
+        can(mcp, clutchRight, clutchLeft) {
 
     }
 
     void SetUp() override {
-        When(Method(mockInterface, begin)).AlwaysReturn();
-        When(Method(mockInterface, setBaudRate)).AlwaysReturn();
-        When(Method(mockInterface, write)).AlwaysReturn(1);
+        When(Method(mockMcp, begin)).AlwaysReturn(1);
+        When(Method(mockMcp, beginPacket)).AlwaysReturn(1);
+        When(Method(mockMcp, write)).AlwaysReturn(1);
+        When(Method(mockMcp, endPacket)).AlwaysReturn(1);
 
         When(Method(mockClutchRight, travel)).AlwaysReturn(0);
+        When(Method(mockClutchLeft, travel)).AlwaysReturn(0);
         When(Method(ArduinoFake(), analogRead)).AlwaysReturn(0);
 
         can.begin();
@@ -42,76 +50,101 @@ class CanTest : public ::testing::Test {
 };
 
 TEST_F(CanTest, begin) {
-    Verify(Method(mockInterface, begin)).Once();
-    Verify(Method(mockInterface, setBaudRate).Using(1000000)).Once();
+    Verify(Method(mockMcp, begin).Using(1000000)).Once();
 }
 
 TEST_F(CanTest, broadcastUp) {
-    const CAN_message_t reference = {
-        .id = 0x65cu,
-        .buf = {0b00000001, 0x0F, 0xA0, 0x17, 0x70, 0x00, 0x00, 0x00}
-    };
+    const auto expectedID = 0x65C;
+    const uint8_t expected[8] = {0b00000001, 0x17, 0x70, 0x0F, 0xA0, 0x00, 0x00, 0x00};
 
-    CAN_message_t written;
+    size_t actualSize = 0;
+    uint8_t actual[8] = {0};
 
-    When(Method(mockInterface, write)).Do([&](const CAN_message_t& msg) -> int {
-        written = msg;
+    When(Method(mockMcp, write)).Do([&](uint8_t *buffer, size_t size) -> int {
+        actualSize = size;
+        memcpy(actual, buffer, sizeof(actual));
         return 1;
     });
 
-    can.broadcast(true, false, 40, 60);
-    ASSERT_EQ(written, reference);
+    can.broadcast(true, false, 60, 40);
+
+    Verify(Method(mockMcp, beginPacket).Using(expectedID)).Once();
+    Verify(Method(mockMcp, endPacket)).Once();
+
+    EXPECT_EQ(actualSize, 8);
+    EXPECT_TRUE(0 == memcmp(actual, expected, sizeof(actual)));
 }
 
 TEST_F(CanTest, broadcastDown) {
-    const CAN_message_t reference = {
-        .id = 0x65cu,
-        .buf = {0b00000010, 0x0F, 0xA0, 0x17, 0x70, 0x00, 0x00, 0x00}
-    };
+    const auto expectedID = 0x65C;
+    const uint8_t expected[8] = {0b00000010, 0x17, 0x70, 0x0F, 0xA0, 0x00, 0x00, 0x00};
 
-    CAN_message_t written;
+    size_t actualSize = 0;
+    uint8_t actual[8] = {0};
 
-    When(Method(mockInterface, write)).Do([&](const CAN_message_t& msg) -> int {
-        written = msg;
+    When(Method(mockMcp, write)).Do([&](uint8_t *buffer, size_t size) -> int {
+        actualSize = size;
+        memcpy(actual, buffer, sizeof(actual));
         return 1;
     });
 
-    can.broadcast(false, true, 40, 60);
-    ASSERT_EQ(written, reference);
+    can.broadcast(false, true, 60, 40);
+
+    Verify(Method(mockMcp, beginPacket).Using(expectedID)).Once();
+    Verify(Method(mockMcp, endPacket)).Once();
+
+    EXPECT_EQ(actualSize, 8);
+    for(size_t i=0; i<actualSize; i++) {
+        EXPECT_EQ(actual[i], expected[i]) << "Mismatch at index " << i;
+    }
 }
 
 TEST_F(CanTest, broadcastMin) {
-    const CAN_message_t reference = {
-        .id = 0x65cu,
-        .buf = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-    };
+    const auto expectedID = 0x65cu;
+    const uint8_t expected[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-    CAN_message_t written;
+    size_t actualSize = 0;
+    uint8_t actual[8] = {0};
 
-    When(Method(mockInterface, write)).Do([&](const CAN_message_t& msg) -> int {
-        written = msg;
+    When(Method(mockMcp, write)).Do([&](uint8_t *buffer, size_t size) -> int {
+        actualSize = size;
+        memcpy(actual, buffer, sizeof(actual));
         return 1;
     });
 
     can.broadcast(false, false, -1, -1);
-    ASSERT_EQ(written, reference);
+
+    Verify(Method(mockMcp, beginPacket).Using(expectedID)).Once();
+    Verify(Method(mockMcp, endPacket)).Once();
+
+    EXPECT_EQ(actualSize, 8);
+    for(size_t i=0; i<actualSize; i++) {
+        EXPECT_EQ(actual[i], expected[i]) << "Mismatch at index " << i;
+    }
 }
 
 TEST_F(CanTest, broadcastMax) {
-    const CAN_message_t reference = {
-        .id = 0x65cu,
-        .buf = {0x00, 0x27, 0x10, 0x27, 0x10, 0x00, 0x00, 0x00}
-    };
+    const auto expectedID = 0x65cu;
+    const uint8_t expected[8] = {0x00, 0x27, 0x10, 0x27, 0x10, 0x00, 0x00, 0x00};
 
-    CAN_message_t written;
+    size_t actualSize = 0;
+    uint8_t actual[8] = {0};
 
-    When(Method(mockInterface, write)).Do([&](const CAN_message_t& msg) -> int {
-        written = msg;
+    When(Method(mockMcp, write)).Do([&](uint8_t *buffer, size_t size) -> int {
+        actualSize = size;
+        memcpy(actual, buffer, sizeof(actual));
         return 1;
     });
 
     can.broadcast(false, false, 101, 101);
-    ASSERT_EQ(written, reference);
+
+    Verify(Method(mockMcp, beginPacket).Using(expectedID)).Once();
+    Verify(Method(mockMcp, endPacket)).Once();
+
+    EXPECT_EQ(actualSize, 8);
+    for(size_t i=0; i<actualSize; i++) {
+        EXPECT_EQ(actual[i], expected[i]) << "Mismatch at index " << i;
+    }
 }
 
 #endif

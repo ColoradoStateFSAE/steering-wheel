@@ -13,6 +13,7 @@ extern Mock<Can> mockCan;
 extern Mock<Button> mockUp;
 extern Mock<Button> mockDown;
 extern Mock<AnalogInput> mockClutchRight;
+extern Mock<AnalogInput> mockClutchLeft;
 
 extern void setup();
 extern void loop();
@@ -41,6 +42,13 @@ protected:
         When(Method(mockClutchRight, update)).AlwaysReturn();
         When(Method(mockClutchRight, travel)).AlwaysReturn(33.3);
 
+        // Left Clutch
+        When(Method(mockClutchLeft, begin)).AlwaysReturn();
+        When(Method(mockClutchLeft, minDeadzone)).AlwaysReturn();
+        When(Method(mockClutchLeft, maxDeadzone)).AlwaysReturn();
+        When(Method(mockClutchLeft, update)).AlwaysReturn();
+        When(Method(mockClutchLeft, travel)).AlwaysReturn(0);
+
         When(Method(ArduinoFake(), millis)).AlwaysReturn(0);
 
         setup();
@@ -52,6 +60,7 @@ protected:
         mockUp.ClearInvocationHistory();
         mockDown.ClearInvocationHistory();
         mockClutchRight.ClearInvocationHistory();
+        mockClutchLeft.ClearInvocationHistory();
     }
 };
 
@@ -68,6 +77,12 @@ TEST_F(MainTest, ClutchRightBegin) {
     Verify(Method(mockClutchRight, begin).Using(17)).Once();
     Verify(Method(mockClutchRight, minDeadzone).Using(10)).Once();
     Verify(Method(mockClutchRight, maxDeadzone).Using(20)).Once();
+}
+
+TEST_F(MainTest, ClutchLeftBegin) {
+    Verify(Method(mockClutchLeft, begin).Using(16)).Once();
+    Verify(Method(mockClutchLeft, minDeadzone).Using(10)).Once();
+    Verify(Method(mockClutchLeft, maxDeadzone).Using(20)).Once();
 }
 
 TEST_F(MainTest, ButtonsUpdate) {
