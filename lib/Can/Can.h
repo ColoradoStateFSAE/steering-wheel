@@ -6,11 +6,10 @@
 #include "../../test/mock/MockAdafruit_NeoPixel.h"
 #else
 #include <Adafruit_MCP2515.h>
-#include <Adafruit_Neopixel.h>
+#include <Adafruit_NeoPixel.h>
 #endif
 
 #include <Arduino.h>
-#include <functional>
 #include "../AnalogInput/AnalogInput.h"
 #include <tcs.h>
 
