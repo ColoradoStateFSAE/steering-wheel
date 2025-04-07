@@ -11,6 +11,7 @@ class Adafruit_MCP2515 {
     virtual int beginPacket(int id) = 0;
     virtual size_t write(uint8_t *buffer, size_t size) = 0;
     virtual int endPacket() = 0;
+    virtual int parsePacket() = 0;
 };
 
 #endif

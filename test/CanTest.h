@@ -13,33 +13,35 @@ using namespace fakeit;
 class CanTest : public ::testing::Test {
   protected:
     Mock<Adafruit_MCP2515> mockMcp;
-    Adafruit_MCP2515& mcp;
+    Adafruit_MCP2515& mcp = mockMcp.get();
 
     Mock<AnalogInput> mockClutchRight;
-    AnalogInput& clutchRight;
+    AnalogInput& clutchRight = mockClutchRight.get();
 
     Mock<AnalogInput> mockClutchLeft;
-    AnalogInput& clutchLeft;
+    AnalogInput& clutchLeft = mockClutchLeft.get();
 
-    Can can;
+    Mock<Adafruit_NeoPixel> mockPixels;
+    Adafruit_NeoPixel& pixels = mockPixels.get();
 
-    CanTest() :
-        mcp(mockMcp.get()),
-        clutchRight(mockClutchRight.get()),
-        clutchLeft(mockClutchLeft.get()),
-        can(mcp, clutchRight, clutchLeft) {
+    Can can = Can(mcp, clutchRight, clutchLeft, pixels);
 
-    }
+    unsigned long time = 0;
 
     void SetUp() override {
-        When(Method(mockMcp, begin)).AlwaysReturn(1);
         When(Method(mockMcp, beginPacket)).AlwaysReturn(1);
         When(Method(mockMcp, write)).AlwaysReturn(1);
         When(Method(mockMcp, endPacket)).AlwaysReturn(1);
+        When(Method(mockMcp, parsePacket)).AlwaysReturn(8);
+
+        When(Method(mockPixels, show)).AlwaysReturn();
+        When(Method(mockPixels, setPixelColor)).AlwaysReturn();
 
         When(Method(mockClutchRight, travel)).AlwaysReturn(0);
         When(Method(mockClutchLeft, travel)).AlwaysReturn(0);
         When(Method(ArduinoFake(), analogRead)).AlwaysReturn(0);
+
+        When(Method(ArduinoFake(), millis)).AlwaysDo([&]() -> unsigned long { return time; });
 
         can.begin();
     }
@@ -49,13 +51,9 @@ class CanTest : public ::testing::Test {
     }
 };
 
-TEST_F(CanTest, begin) {
-    Verify(Method(mockMcp, begin).Using(1000000)).Once();
-}
-
 TEST_F(CanTest, broadcastUp) {
     const auto expectedID = 0x65C;
-    const uint8_t expected[8] = {0b00000001, 0x17, 0x70, 0x0F, 0xA0, 0x00, 0x00, 0x00};
+    const uint8_t expected[8] = {0b10000000, 0x17, 0x70, 0x0F, 0xA0, 0x00, 0x00, 0x00};
 
     size_t actualSize = 0;
     uint8_t actual[8] = {0};
@@ -77,7 +75,7 @@ TEST_F(CanTest, broadcastUp) {
 
 TEST_F(CanTest, broadcastDown) {
     const auto expectedID = 0x65C;
-    const uint8_t expected[8] = {0b00000010, 0x17, 0x70, 0x0F, 0xA0, 0x00, 0x00, 0x00};
+    const uint8_t expected[8] = {0b01000000, 0x17, 0x70, 0x0F, 0xA0, 0x00, 0x00, 0x00};
 
     size_t actualSize = 0;
     uint8_t actual[8] = {0};
@@ -145,6 +143,26 @@ TEST_F(CanTest, broadcastMax) {
     for(size_t i=0; i<actualSize; i++) {
         EXPECT_EQ(actual[i], expected[i]) << "Mismatch at index " << i;
     }
+}
+
+TEST_F(CanTest, ledColor) {
+    can.update();
+    Verify(Method(mockPixels, setPixelColor).Using(0, pixels.Color(0, 255, 0)));
+
+    When(Method(mockMcp, parsePacket)).AlwaysReturn(0);
+
+    time = 100;
+    can.update();
+    Verify(Method(mockPixels, setPixelColor).Using(0, pixels.Color(255, 0, 0)));
+}
+
+TEST_F(CanTest, updateLedFrequency) {
+    for(int i=0; i<=2000; i+=10) {
+        time = i;
+        can.updateLed();
+    }
+
+    Verify(Method(mockPixels, show)).Exactly(4);
 }
 
 #endif

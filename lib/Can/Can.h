@@ -3,8 +3,10 @@
 
 #ifdef NATIVE
 #include "../../test/mock/MockAdafruit_MCP2515.h"
+#include "../../test/mock/MockAdafruit_NeoPixel.h"
 #else
 #include <Adafruit_MCP2515.h>
+#include <Adafruit_Neopixel.h>
 #endif
 
 #include <Arduino.h>
@@ -17,19 +19,24 @@ class Can {
     Adafruit_MCP2515& mcp;
     AnalogInput& clutchRight;
     AnalogInput& clutchLeft;
+    Adafruit_NeoPixel& pixels;
     
     Can(
         Adafruit_MCP2515& mcpRef,
         AnalogInput& clutchRightRef,
-        AnalogInput& clutchLeftRef
+        AnalogInput& clutchLeftRef,
+        Adafruit_NeoPixel& pixelsRef
     ) : 
         mcp(mcpRef),
         clutchRight(clutchRightRef),
-        clutchLeft(clutchLeftRef) {
+        clutchLeft(clutchLeftRef),
+        pixels(pixelsRef) {
             
     }
     
     virtual void begin();
+    virtual void update();
+    virtual void updateLed();
     virtual void broadcast(bool up, bool down, float clutchRight, float clutchLeft);
 };
 

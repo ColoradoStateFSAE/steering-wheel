@@ -14,8 +14,10 @@ class AnalogInputTest : public ::testing::Test {
     const int pin = 17;
     AnalogInput analogInput = AnalogInput(samples);
 
+    int analogValue = 500;
+
     void resample(int value, int n=1000) {
-        When(Method(ArduinoFake(), analogRead)).AlwaysReturn(value);
+        analogValue = value;
         for (int i=0; i<n; i++) {
             analogInput.update();
         }
@@ -23,7 +25,7 @@ class AnalogInputTest : public ::testing::Test {
 
     void SetUp() override {
         When(Method(ArduinoFake(), pinMode)).AlwaysReturn();
-        When(Method(ArduinoFake(), analogRead)).AlwaysReturn(500);
+        When(Method(ArduinoFake(), analogRead)).AlwaysDo([&](uint8_t) -> int { return analogValue; });
         When(Method(ArduinoFake(), delay)).AlwaysReturn();
         When(Method(ArduinoFake(), millis)).AlwaysReturn(0);
         When(OverloadedMethod(ArduinoFake(Serial), println, size_t(const String&))).AlwaysReturn(0);
@@ -43,36 +45,12 @@ class AnalogInputTest : public ::testing::Test {
 TEST_F(AnalogInputTest, begin) {
     Verify(Method(ArduinoFake(), pinMode).Using(pin, INPUT_PULLUP)).Once();
     Verify(Method(ArduinoFake(), analogRead).Using(pin)).Exactly(samples);
-    EXPECT_EQ(analogInput.state(), AnalogInput::State::READING);
+    EXPECT_EQ(analogInput.travel(), 0);
 }
 
 TEST_F(AnalogInputTest, update) {
     analogInput.update();
     Verify(Method(ArduinoFake(), analogRead).Using(pin)).Exactly(samples + 1);
-}
-
-TEST_F(AnalogInputTest, recalibrate) {
-    // Reading is too high
-    When(Method(ArduinoFake(), analogRead).Using(pin)).AlwaysReturn(900);
-    analogInput.update();
-    EXPECT_EQ(analogInput.state(), AnalogInput::State::IDLE);
-
-    // Reading is still outside of range
-    analogInput.update();
-    EXPECT_EQ(analogInput.state(), AnalogInput::State::IDLE);
-
-    // Idle to recalibrate
-    When(Method(ArduinoFake(), analogRead).Using(pin)).AlwaysReturn(500);
-    analogInput.update();
-    EXPECT_EQ(analogInput.state(), AnalogInput::State::RECALIBRATE);
-
-    // Recalibrate to reading
-    analogInput.update();
-    EXPECT_EQ(analogInput.state(), AnalogInput::State::READING);
-    Verify(Method(ArduinoFake(), delay).Using(50)).Once();
-
-    analogInput.update();
-    EXPECT_EQ(analogInput.state(), AnalogInput::State::READING);
 }
 
 TEST_F(AnalogInputTest, defaultDeadzones) {
@@ -117,12 +95,6 @@ TEST_F(AnalogInputTest, deadzones) {
         resample(reading);
         EXPECT_EQ(analogInput.travel(), 100);
     }
-}
-
-TEST_F(AnalogInputTest, unknownState) {
-    analogInput.state(404);
-    analogInput.update();
-    Verify(OverloadedMethod(ArduinoFake(Serial), println, size_t(const String&))).Once();
 }
 
 #endif

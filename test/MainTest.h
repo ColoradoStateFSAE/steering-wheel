@@ -3,17 +3,20 @@
 
 #include <gtest/gtest.h>
 #include <Arduino.h>
+#include "mock/MockAdafruit_NeoPixel.h"
 #include "../lib/AnalogInput/AnalogInput.h"
 #include "../lib/Button/Button.h"
 #include "../lib/Can/Can.h"
 
 using namespace fakeit;
 
-extern Mock<Can> mockCan;
+extern Mock<Adafruit_MCP2515> mockMcp;
+extern Mock<Adafruit_NeoPixel> mockPixels;
 extern Mock<Button> mockUp;
 extern Mock<Button> mockDown;
 extern Mock<AnalogInput> mockClutchRight;
 extern Mock<AnalogInput> mockClutchLeft;
+extern Mock<Can> mockCan;
 
 extern void setup();
 extern void loop();
@@ -21,9 +24,13 @@ extern void loop();
 class MainTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Can
-        When(Method(mockCan, begin)).AlwaysReturn();
-        When(Method(mockCan, broadcast)).AlwaysReturn();
+        // Adafruit_MCP2515
+        When(Method(mockMcp, begin)).AlwaysReturn(1);
+
+        // Adafruit_NeoPixel
+        When(Method(mockPixels, begin)).AlwaysReturn();
+        When(Method(mockPixels, setPixelColor)).AlwaysReturn();
+        When(Method(mockPixels, show)).AlwaysReturn();
 
         // Up
         When(Method(mockUp, begin)).AlwaysReturn();
@@ -49,6 +56,12 @@ protected:
         When(Method(mockClutchLeft, update)).AlwaysReturn();
         When(Method(mockClutchLeft, travel)).AlwaysReturn(0);
 
+        // Can
+        When(Method(mockCan, begin)).AlwaysReturn();
+        When(Method(mockCan, update)).AlwaysReturn();
+        When(Method(mockCan, broadcast)).AlwaysReturn();
+
+        When(Method(ArduinoFake(), digitalWrite)).AlwaysReturn();
         When(Method(ArduinoFake(), millis)).AlwaysReturn(0);
 
         setup();
@@ -64,31 +77,36 @@ protected:
     }
 };
 
-TEST_F(MainTest, CanBegin) {
-    Verify(Method(mockCan, begin)).Once();
+TEST_F(MainTest, setup) {
+    Verify(
+        Method(mockMcp, begin).Using(1000000),
+
+        Method(ArduinoFake(), digitalWrite).Using(20, HIGH),
+        
+        Method(mockClutchRight, begin).Using(17),
+        Method(mockClutchRight, minDeadzone).Using(10),
+        Method(mockClutchRight, maxDeadzone).Using(20),
+
+        Method(mockClutchLeft, begin).Using(16),
+        Method(mockClutchLeft, minDeadzone).Using(10),
+        Method(mockClutchLeft, maxDeadzone).Using(20),
+
+        Method(mockUp, begin).Using(6, 5000),
+        Method(mockDown, begin).Using(7, 5000)
+    );
 }
 
-TEST_F(MainTest, ButtonBegin) {
-    Verify(Method(mockUp, begin).Using(6, 5000)).Once();
-    Verify(Method(mockDown, begin).Using(7, 5000)).Once();
-}
-
-TEST_F(MainTest, ClutchRightBegin) {
-    Verify(Method(mockClutchRight, begin).Using(17)).Once();
-    Verify(Method(mockClutchRight, minDeadzone).Using(10)).Once();
-    Verify(Method(mockClutchRight, maxDeadzone).Using(20)).Once();
-}
-
-TEST_F(MainTest, ClutchLeftBegin) {
-    Verify(Method(mockClutchLeft, begin).Using(16)).Once();
-    Verify(Method(mockClutchLeft, minDeadzone).Using(10)).Once();
-    Verify(Method(mockClutchLeft, maxDeadzone).Using(20)).Once();
-}
-
-TEST_F(MainTest, ButtonsUpdate) {
+TEST_F(MainTest, loop) {
     loop();
-    Verify(Method(mockUp, update)).Once();
-    Verify(Method(mockDown, update)).Once();
+    Verify(
+        Method(mockCan, update),
+
+        Method(mockUp, update),
+        Method(mockDown, update),
+
+        Method(mockClutchRight, update),
+        Method(mockClutchLeft, update)
+    );
 }
 
 TEST_F(MainTest, ButtonsPressed) {
@@ -103,7 +121,7 @@ TEST_F(MainTest, ButtonsPressed) {
 }
 
 TEST_F(MainTest, TimedBroadcast) {
-    for(int i=0; i<=1000; i+=5) {
+    for(int i=0; i<=1000; i++) {
         When(Method(ArduinoFake(), millis)).AlwaysReturn(i);
         loop();
     }

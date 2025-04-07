@@ -3,7 +3,20 @@
 using namespace std;
 
 void Can::begin() {
-    mcp.begin(1000000);
+    
+}
+
+void Can::update() {
+    static unsigned long lastReceiveTime = 0;
+    if(mcp.parsePacket()) {
+        lastReceiveTime = millis();
+    }
+
+    if(millis() - lastReceiveTime >= 100) {
+        pixels.setPixelColor(0, pixels.Color(255, 0, 0));
+    } else {
+        pixels.setPixelColor(0, pixels.Color(0, 255, 0));
+    }
 }
 
 void Can::broadcast(bool up, bool down, float clutchRight, float clutchLeft) {
@@ -22,4 +35,13 @@ void Can::broadcast(bool up, bool down, float clutchRight, float clutchLeft) {
     
     mcp.write(msg, sizeof(msg));
     mcp.endPacket();
+}
+
+void Can::updateLed() {
+    static unsigned long lastUpdateTime = 0;
+    if(millis() - lastUpdateTime >= 500) {
+        lastUpdateTime = millis();
+
+        pixels.show();
+    }
 }
