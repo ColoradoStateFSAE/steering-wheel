@@ -59,8 +59,11 @@ protected:
         // Can
         When(Method(mockCan, begin)).AlwaysReturn();
         When(Method(mockCan, update)).AlwaysReturn();
+        When(Method(mockCan, updateLed)).AlwaysReturn();
         When(Method(mockCan, broadcast)).AlwaysReturn();
 
+        // Arduino core mocks
+        When(Method(ArduinoFake(), pinMode)).AlwaysReturn();
         When(Method(ArduinoFake(), digitalWrite)).AlwaysReturn();
         When(Method(ArduinoFake(), millis)).AlwaysReturn(0);
 
@@ -81,6 +84,7 @@ TEST_F(MainTest, setup) {
     Verify(
         Method(mockMcp, begin).Using(1000000),
 
+        Method(ArduinoFake(), pinMode).Using(20, OUTPUT),
         Method(ArduinoFake(), digitalWrite).Using(20, HIGH),
         
         Method(mockClutchRight, begin).Using(17),
@@ -100,6 +104,7 @@ TEST_F(MainTest, loop) {
     loop();
     Verify(
         Method(mockCan, update),
+        Method(mockCan, updateLed),
 
         Method(mockUp, update),
         Method(mockDown, update),
