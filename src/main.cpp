@@ -37,7 +37,7 @@ const int CLUTCH_LEFT = 16;
     #include <Adafruit_NeoPixel.h>
 
     Adafruit_MCP2515 mcp(PIN_CAN_CS);
-    Adafruit_NeoPixel pixels(1, PIN_LED, NEO_GRB + NEO_KHZ800);
+    Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
     AnalogInput clutchRight(256);
     AnalogInput clutchLeft(256);
     Button up;
@@ -47,7 +47,7 @@ const int CLUTCH_LEFT = 16;
 
 void setup() {
     mcp.begin(1000000);
-
+    pinMode(20,OUTPUT);
     digitalWrite(20, HIGH);
     pixels.begin();
 
@@ -65,6 +65,7 @@ void setup() {
 
 void loop() {
     can.update();
+    can.updateLed();
     
     // Handle input
     up.update();
