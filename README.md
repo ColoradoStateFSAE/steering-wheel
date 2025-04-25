@@ -4,4 +4,4 @@
 [![PlatformIO CI](https://github.com/ColoradoStateFSAE/steering-wheel/actions/workflows/platformio_ci.yml/badge.svg)](https://github.com/ColoradoStateFSAE/steering-wheel/actions/workflows/platformio_ci.yml/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/ColoradoStateFSAE/steering-wheel/badge.svg?branch=main)](https://coveralls.io/github/ColoradoStateFSAE/steering-wheel?branch=main)
 
-Send shift and clutch input over CAN.
+Send shift and clutch input over CAN. Used on the 2025 competition car!
