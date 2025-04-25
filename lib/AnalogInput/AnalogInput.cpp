@@ -6,7 +6,7 @@ void AnalogInput::begin(int pin) {
     _pin = pin;    
     pinMode(_pin, INPUT_PULLUP);
 
-    for (int i=0; i<_samples; i++) {
+    while(!runningAverage.bufferIsFull()) {
         runningAverage.add(analogRead(_pin));
     }
 
@@ -27,59 +27,23 @@ void AnalogInput::findMinMax(int value) {
         max = value;
     }
 
-    // Update the minimum if a smaller value is found
-    // and is 30 less than the maximum
-    if(value < min && value <= max - 30) {
+    if(value < min) {
         min = value;
     }
 }
 
 void AnalogInput::update() {
     const int reading = analogRead(_pin);
-    bool recalibrate = false;
     
-    if(reading <= recalibrateMin || recalibrateMax <= reading) {
-        recalibrate = true;
-    }
-
-    switch(state()) {
-        case READING: {
-            if(recalibrate) {
-                state(IDLE);
-            } else {
-                runningAverage.add(reading);
-                float average = runningAverage.getFastAverage();
-                findMinMax(average);
-            }
-            break;
-        }
-
-        case IDLE: {
-            if(!recalibrate) {
-                state(RECALIBRATE);
-            }
-            break;
-        }
-
-        case RECALIBRATE: {
-            min = numeric_limits<float>::max();
-            max = 0;
-            delay(50);
-            for (int i=0; i<_samples; i++) {
-                runningAverage.add(analogRead(_pin));
-            }
-
-            state(READING);
-            break;
-        }
-
-        default:
-            warnUnknownState("AnalogInput");
-            break;
-        }
+    runningAverage.add(reading);
+    float average = runningAverage.getFastAverage();
+    findMinMax(average);
 }
 
 float AnalogInput::travel() {
+    if(max == 0 || min == std::numeric_limits<float>::max()) return 0;
+    if(abs(max - min) < 50) return 0;
+
     float average = runningAverage.getFastAverage();
 
     float range = abs(max - min);

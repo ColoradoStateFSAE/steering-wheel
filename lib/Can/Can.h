@@ -2,30 +2,40 @@
 #define CAN_H
 
 #ifdef NATIVE
-#include "../../test/mock/MockFlexCAN_T4.h"
+#include "../../test/mock/MockAdafruit_MCP2515.h"
+#include "../../test/mock/MockAdafruit_NeoPixel.h"
 #else
-#include <FlexCAN_T4.h>
+#include <Adafruit_MCP2515.h>
+#include <Adafruit_NeoPixel.h>
 #endif
 
 #include <Arduino.h>
-#include <functional>
 #include "../AnalogInput/AnalogInput.h"
-#include "../dbc/tcs.h"
+#include <tcs.h>
 
 class Can {
   public:
-    FlexCAN_T4<CAN1, RX_SIZE_16, TX_SIZE_16>& interface;
+    Adafruit_MCP2515& mcp;
     AnalogInput& clutchRight;
+    AnalogInput& clutchLeft;
+    Adafruit_NeoPixel& pixels;
     
     Can(
-        FlexCAN_T4<CAN1, RX_SIZE_16, TX_SIZE_16>& interfaceRef,
-        AnalogInput& clutchRightRef
+        Adafruit_MCP2515& mcpRef,
+        AnalogInput& clutchRightRef,
+        AnalogInput& clutchLeftRef,
+        Adafruit_NeoPixel& pixelsRef
     ) : 
-        interface(interfaceRef),
-        clutchRight(clutchRightRef) {
+        mcp(mcpRef),
+        clutchRight(clutchRightRef),
+        clutchLeft(clutchLeftRef),
+        pixels(pixelsRef) {
+            
     }
     
     virtual void begin();
+    virtual void update();
+    virtual void updateLed();
     virtual void broadcast(bool up, bool down, float clutchRight, float clutchLeft);
 };
 

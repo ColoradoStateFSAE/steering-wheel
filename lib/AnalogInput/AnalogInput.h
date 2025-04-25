@@ -4,9 +4,8 @@
 #include <Arduino.h>
 #include <RunningAverage.h>
 #include <limits>
-#include "../FiniteStateMachine/FiniteStateMachine.h"
 
-class AnalogInput : public FiniteStateMachine {
+class AnalogInput {
   public:
     enum State {
         READING,
@@ -15,7 +14,7 @@ class AnalogInput : public FiniteStateMachine {
     };
 
     AnalogInput() = delete;
-    AnalogInput(uint16_t samples) : FiniteStateMachine(READING), _samples(samples) {};
+    AnalogInput(uint16_t samples) : _samples(samples) {};
     virtual ~AnalogInput() {}
     virtual void begin(int pin);
     virtual void minDeadzone(float percent);
@@ -33,9 +32,6 @@ class AnalogInput : public FiniteStateMachine {
 
     float min = std::numeric_limits<float>::max();
     float max = 0;
-
-    const int recalibrateMin = 100;
-    const int recalibrateMax = 900;
 
     void findMinMax(int value);
 };

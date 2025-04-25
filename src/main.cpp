@@ -6,63 +6,84 @@
 #include "../lib/Button/Button.h"
 #include "../lib/Can/Can.h"
 
+const int UP = 6;
+const int DOWN = 7;
+const int CLUTCH_RIGHT = 17;
+const int CLUTCH_LEFT = 16;
+
 #ifdef NATIVE
-    #include "../test/mock/MockFlexCAN_T4.h"
+    #include "../test/mock/MockAdafruit_MCP2515.h"
+    #include "../test/mock/MockAdafruit_NeoPixel.h"
 
     using namespace fakeit;
 
-    Mock<Can> mockCan;
+    Mock<Adafruit_MCP2515> mockMcp;
+    Mock<Adafruit_NeoPixel> mockPixels;
+    Mock<AnalogInput> mockClutchRight;
+    Mock<AnalogInput> mockClutchLeft;
     Mock<Button> mockUp;
     Mock<Button> mockDown;
-    Mock<AnalogInput> mockClutchRight;
+    Mock<Can> mockCan;
 
-    Can& can = mockCan.get();
+    Adafruit_MCP2515& mcp = mockMcp.get();
+    Adafruit_NeoPixel& pixels = mockPixels.get();
+    AnalogInput& clutchRight = mockClutchRight.get();
+    AnalogInput& clutchLeft = mockClutchLeft.get();
     Button& up = mockUp.get();
     Button& down = mockDown.get();
-    AnalogInput& clutchRight = mockClutchRight.get();
+    Can& can = mockCan.get();
+    
 #else
-    #include <FlexCAN_T4.h>
+    #include <Adafruit_NeoPixel.h>
 
-    FlexCAN_T4<CAN1, RX_SIZE_16, TX_SIZE_16> interface;
-    AnalogInput clutchRight(512);
-    Can can(interface, clutchRight);
+    Adafruit_MCP2515 mcp(PIN_CAN_CS);
+    Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
+    AnalogInput clutchRight(256);
+    AnalogInput clutchLeft(256);
     Button up;
     Button down;
+    Can can(mcp, clutchRight, clutchLeft, pixels);
 #endif
 
-const int UP = 6;
-const int DOWN = 7;
-const int CLUTCH_LEFT = 16;
-const int CLUTCH_RIGHT = 17;
-
 void setup() {
-    can.begin();
-
-    up.begin(UP);
-    down.begin(DOWN);
+    mcp.begin(1000000);
+    pinMode(20,OUTPUT);
+    digitalWrite(20, HIGH);
+    pixels.begin();
 
     clutchRight.begin(CLUTCH_RIGHT);
     clutchRight.minDeadzone(10);
     clutchRight.maxDeadzone(20);
+
+    clutchLeft.begin(CLUTCH_LEFT);
+    clutchLeft.minDeadzone(10);
+    clutchLeft.maxDeadzone(20);
+
+    up.begin(UP);
+    down.begin(DOWN);
 }
 
 void loop() {
+    can.update();
+    can.updateLed();
+    
     // Handle input
     up.update();
     down.update();
     clutchRight.update();
+    clutchLeft.update();
 
     if(up.pressed()) {
-        can.broadcast(true, false, clutchRight.travel(), 0);
+        can.broadcast(true, false, clutchRight.travel(), clutchLeft.travel());
     } else if(down.pressed()) {
-        can.broadcast(false, true, clutchRight.travel(), 0);
+        can.broadcast(false, true, clutchRight.travel(), clutchLeft.travel());
     } else {
         // Broadcast clutch every 10 ms
         static unsigned long lastBroadastTime = 0;
-        if(millis() - lastBroadastTime < 10) return;
-
-        can.broadcast(false, false, clutchRight.travel(), 0);
-        lastBroadastTime = millis();
+        if(millis() - lastBroadastTime >= 10) {
+            can.broadcast(false, false, clutchRight.travel(), clutchLeft.travel());
+            lastBroadastTime = millis();
+        }
     }
 }
 

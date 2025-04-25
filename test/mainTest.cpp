@@ -4,7 +4,6 @@
 #include "AnalogInputTest.h"
 #include "ButtonTest.h"
 #include "CanTest.h"
-#include "FiniteStateMachineTest.h"
 #include "MainTest.h"
 
 int main(int argc, char** argv) {
