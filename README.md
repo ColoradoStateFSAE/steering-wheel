@@ -4,4 +4,4 @@
 [![PlatformIO CI](https://github.com/SpecialMatrix/steering-wheel-shift-controller/actions/workflows/platformio_ci.yml/badge.svg)](https://github.com/SpecialMatrix/steering-wheel-shift-controller/actions/workflows/platformio_ci.yml/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/SpecialMatrix/steering-wheel-shift-controller/badge.svg?branch=main)](https://coveralls.io/github/SpecialMatrix/steering-wheel-shift-controller?branch=main)
 
-Send shift and clutch input over CAN. Used on 2025 Car!
+Send shift and clutch input over CAN.
