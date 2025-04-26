@@ -6,10 +6,10 @@
 #include "../lib/Button/Button.h"
 #include "../lib/Can/Can.h"
 
-const int UP = 6;
-const int DOWN = 7;
-const int CLUTCH_RIGHT = 17;
-const int CLUTCH_LEFT = 16;
+const int UP = 2;
+const int DOWN = 4;
+const int CLUTCH_RIGHT = 27;
+const int CLUTCH_LEFT = 26;
 
 #ifdef NATIVE
     #include "../test/mock/MockAdafruit_MCP2515.h"
