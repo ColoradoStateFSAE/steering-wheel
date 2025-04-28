@@ -6,8 +6,8 @@
 #include "../lib/Button/Button.h"
 #include "../lib/Can/Can.h"
 
-const int UP = 2;
-const int DOWN = 4;
+const int UP = 4;
+const int DOWN = 2;
 const int CLUTCH_RIGHT = 27;
 const int CLUTCH_LEFT = 26;
 
