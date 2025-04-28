@@ -95,8 +95,8 @@ TEST_F(MainTest, setup) {
         Method(mockClutchLeft, minDeadzone).Using(10),
         Method(mockClutchLeft, maxDeadzone).Using(20),
 
-        Method(mockUp, begin).Using(6, 5000),
-        Method(mockDown, begin).Using(7, 5000)
+        Method(mockUp, begin).Using(4, 5000),
+        Method(mockDown, begin).Using(2, 5000)
     );
 }
 
