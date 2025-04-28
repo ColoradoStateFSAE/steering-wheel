@@ -87,11 +87,11 @@ TEST_F(MainTest, setup) {
         Method(ArduinoFake(), pinMode).Using(20, OUTPUT),
         Method(ArduinoFake(), digitalWrite).Using(20, HIGH),
         
-        Method(mockClutchRight, begin).Using(17),
+        Method(mockClutchRight, begin).Using(27),
         Method(mockClutchRight, minDeadzone).Using(10),
         Method(mockClutchRight, maxDeadzone).Using(20),
 
-        Method(mockClutchLeft, begin).Using(16),
+        Method(mockClutchLeft, begin).Using(26),
         Method(mockClutchLeft, minDeadzone).Using(10),
         Method(mockClutchLeft, maxDeadzone).Using(20),
 
