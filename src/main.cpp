@@ -41,7 +41,6 @@ Adafruit_NeoPixel& pixels = mockPixels.get();
 
 std::optional<MCP2515> mcp;
 Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
-Signals signals;
 CanController canController(*mcp, signals);
 OneButton up;
 OneButton down;    
