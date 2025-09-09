@@ -1,5 +1,5 @@
-#if !defined(MOCKADAFRUIT_NEOPIXEL_H) && defined(NATIVE)
-#define MOCKADAFRUIT_NEOPIXEL_H
+#pragma once
+#ifdef PIO_UNIT_TESTING
 
 #include <Arduino.h>
 

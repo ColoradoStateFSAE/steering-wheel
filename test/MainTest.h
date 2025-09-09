@@ -1,137 +1,147 @@
-#if !defined(MAIN_TEST_H) && defined(NATIVE)
-#define MAIN_TEST_H
-
+#pragma once
+#ifdef PIO_UNIT_TESTING
 #include <gtest/gtest.h>
 #include <Arduino.h>
-#include "mock/MockAdafruit_NeoPixel.h"
-#include "../lib/AnalogInput/AnalogInput.h"
-#include "../lib/Button/Button.h"
-#include "../lib/Can/Can.h"
+#include <OneButton.h>
+#include <Adafruit_NeoPixel.h>
+#include "ClutchPaddle/ClutchPaddle.h"
+#include "CanController/CanController.h"
 
+using namespace std;
 using namespace fakeit;
 
-extern Mock<Adafruit_MCP2515> mockMcp;
+extern Signals signals;
+extern Mock<OneButton> mockUp;
+extern Mock<OneButton> mockDown;
+extern Mock<ClutchPaddle> mockClutchLeft;
+extern Mock<ClutchPaddle> mockClutchRight;
 extern Mock<Adafruit_NeoPixel> mockPixels;
-extern Mock<Button> mockUp;
-extern Mock<Button> mockDown;
-extern Mock<AnalogInput> mockClutchRight;
-extern Mock<AnalogInput> mockClutchLeft;
-extern Mock<Can> mockCan;
+extern Mock<CanController> mockCanController;
 
 extern void setup();
 extern void loop();
 
 class MainTest : public ::testing::Test {
 protected:
-    void SetUp() override {
-        // Adafruit_MCP2515
-        When(Method(mockMcp, begin)).AlwaysReturn(1);
+    callbackFunction upCallback = nullptr;
+    callbackFunction downCallback = nullptr;
 
-        // Adafruit_NeoPixel
+    unsigned long time = 0;
+
+    void SetUp() override {
+        ArduinoFakeReset();
+        // timers = AsyncTimer();
+        // signals = Signals();
+        mockCanController.ClearInvocationHistory();
+        mockPixels.ClearInvocationHistory();
+        mockUp.ClearInvocationHistory();
+        mockDown.ClearInvocationHistory();
+        mockClutchLeft.ClearInvocationHistory();
+        mockClutchRight.ClearInvocationHistory();
+
+        When(Method(ArduinoFake(), millis)).AlwaysDo([&]() -> unsigned long { return time; });
+
+        // CanController
+        When(Method(mockCanController, begin)).AlwaysReturn();
+        When(Method(mockCanController, update)).AlwaysReturn();
+        
+        // NeoPixels
         When(Method(mockPixels, begin)).AlwaysReturn();
         When(Method(mockPixels, setPixelColor)).AlwaysReturn();
         When(Method(mockPixels, show)).AlwaysReturn();
 
-        // Up
-        When(Method(mockUp, begin)).AlwaysReturn();
-        When(Method(mockUp, update)).AlwaysReturn();
-        When(Method(mockUp, pressed)).AlwaysReturn(false);
+        // Up and down
+        for(auto button : {ref(mockUp), ref(mockDown)}) {
+            When(Method(button.get(), setup)).AlwaysReturn();
+            When(Method(button.get(), setDebounceMs)).AlwaysReturn();
+            When(Method(button.get(), tick)).AlwaysReturn();
+        }
 
-        // Down
-        When(Method(mockDown, begin)).AlwaysReturn();
-        When(Method(mockDown, update)).AlwaysReturn();
-        When(Method(mockDown, pressed)).AlwaysReturn(false);
+        When(Method(mockUp, attachPress)).AlwaysDo([&](callbackFunction cb) { upCallback = cb; });
+        When(Method(mockDown, attachPress)).AlwaysDo([&](callbackFunction cb) { downCallback = cb; });
 
-        // Right Clutch
-        When(Method(mockClutchRight, begin)).AlwaysReturn();
-        When(Method(mockClutchRight, minDeadzone)).AlwaysReturn();
-        When(Method(mockClutchRight, maxDeadzone)).AlwaysReturn();
-        When(Method(mockClutchRight, update)).AlwaysReturn();
-        When(Method(mockClutchRight, travel)).AlwaysReturn(33.3);
+        // ClutchLeft and clutchRight
+        for(auto clutch : {ref(mockClutchLeft), ref(mockClutchRight)}) {
+            When(Method(clutch.get(), begin)).AlwaysReturn();
+            When(Method(clutch.get(), update)).AlwaysReturn();
+            When(Method(clutch.get(), travel)).AlwaysReturn(55);
+            When(Method(clutch.get(), readingRaw)).AlwaysReturn(300);
+        }
 
-        // Left Clutch
-        When(Method(mockClutchLeft, begin)).AlwaysReturn();
-        When(Method(mockClutchLeft, minDeadzone)).AlwaysReturn();
-        When(Method(mockClutchLeft, maxDeadzone)).AlwaysReturn();
-        When(Method(mockClutchLeft, update)).AlwaysReturn();
-        When(Method(mockClutchLeft, travel)).AlwaysReturn(0);
+        // NeoPixels
+        When(Method(mockPixels, begin)).AlwaysReturn();
+        When(Method(mockPixels, show)).AlwaysReturn();
 
-        // Can
-        When(Method(mockCan, begin)).AlwaysReturn();
-        When(Method(mockCan, update)).AlwaysReturn();
-        When(Method(mockCan, updateLed)).AlwaysReturn();
-        When(Method(mockCan, broadcast)).AlwaysReturn();
-
-        // Arduino core mocks
         When(Method(ArduinoFake(), pinMode)).AlwaysReturn();
         When(Method(ArduinoFake(), digitalWrite)).AlwaysReturn();
-        When(Method(ArduinoFake(), millis)).AlwaysReturn(0);
-
-        setup();
-    }
-
-    void TearDown() override {
-        ArduinoFakeReset();
-        mockCan.ClearInvocationHistory();
-        mockUp.ClearInvocationHistory();
-        mockDown.ClearInvocationHistory();
-        mockClutchRight.ClearInvocationHistory();
-        mockClutchLeft.ClearInvocationHistory();
     }
 };
 
 TEST_F(MainTest, setup) {
-    Verify(
-        Method(mockMcp, begin).Using(1000000),
+    setup();
 
+    Verify(
+        Method(mockCanController, begin),
+        Method(mockClutchLeft, begin).Using(CLUTCH_LEFT, 26, 10, 10),
+        Method(mockClutchRight, begin).Using(CLUTCH_RIGHT, 26, 10, 10),
+        Method(mockUp, setup).Using(UP_BUTTON, INPUT_PULLUP, false),
+        Method(mockUp, setDebounceMs).Using(5),
+        Method(mockUp, attachPress),
+        Method(mockDown, setup).Using(DOWN_BUTTON, INPUT_PULLUP, false),
+        Method(mockDown, setDebounceMs).Using(5),
+        Method(mockDown, attachPress),
         Method(ArduinoFake(), pinMode).Using(20, OUTPUT),
         Method(ArduinoFake(), digitalWrite).Using(20, HIGH),
-        
-        Method(mockClutchRight, begin).Using(27),
-        Method(mockClutchRight, minDeadzone).Using(10),
-        Method(mockClutchRight, maxDeadzone).Using(20),
-
-        Method(mockClutchLeft, begin).Using(26),
-        Method(mockClutchLeft, minDeadzone).Using(10),
-        Method(mockClutchLeft, maxDeadzone).Using(20),
-
-        Method(mockUp, begin).Using(4, 5000),
-        Method(mockDown, begin).Using(2, 5000)
+        Method(mockPixels, begin)
     );
+
+    bool upCalled = false;
+    bool downCalled = false;
+    signals.onButton = [&](ShiftDirection direction) {
+        upCalled |= direction == UP;
+        downCalled |= direction == DOWN;
+    };
+
+    upCallback();
+    downCallback();
+
+    ASSERT_TRUE(upCalled);
+    ASSERT_TRUE(downCalled);
 }
 
 TEST_F(MainTest, loop) {
+    When(Method(mockClutchRight, travel)).AlwaysReturn(30);
+    When(Method(mockClutchRight, readingRaw)).AlwaysReturn(500);
+
     loop();
+    
     Verify(
-        Method(mockCan, update),
-        Method(mockCan, updateLed),
-
-        Method(mockUp, update),
-        Method(mockDown, update),
-
-        Method(mockClutchRight, update),
-        Method(mockClutchLeft, update)
+        Method(mockUp, tick),
+        Method(mockDown, tick),
+        Method(mockCanController, update)
     );
+
+    ASSERT_EQ(signals.clutchLeft, 55);
+    ASSERT_EQ(signals.clutchRight, 30);
+
+    ASSERT_EQ(signals.clutchLeftRaw, 300);
+    ASSERT_EQ(signals.clutchRightRaw, 500);
+
+    signals.offline = false;
 }
 
-TEST_F(MainTest, ButtonsPressed) {
-    When(Method(mockUp, pressed)).AlwaysReturn(true);
-    loop();
-    Verify(Method(mockCan, broadcast).Using(true, false, 33.3f, 0)).Once();
-
-    When(Method(mockUp, pressed)).AlwaysReturn(false);
-    When(Method(mockDown, pressed)).AlwaysReturn(true);
-    loop();
-    Verify(Method(mockCan, broadcast).Using(false, true, 33.3f, 0)).Once();
-}
-
-TEST_F(MainTest, TimedBroadcast) {
-    for(int i=0; i<=1000; i++) {
-        When(Method(ArduinoFake(), millis)).AlwaysReturn(i);
+TEST_F(MainTest, pixels) {
+    for(time = 0; time <= 200 * 5; time += 200) {
         loop();
     }
 
-    Verify(Method(mockCan, broadcast)).Exactly(100);
+    Verify(Method(mockPixels, setPixelColor).Using(0, 0x008c00)).Exactly(5);
+    Verify(Method(mockPixels, show)).Exactly(5);
+
+    signals.offline = true;
+    time += 200;
+    loop();
+    Verify(Method(mockPixels, setPixelColor).Using(0, 0xff0000)).Exactly(1);
 }
 
 #endif

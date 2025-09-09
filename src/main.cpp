@@ -1,90 +1,105 @@
-#ifndef MAIN_CPP
-#define MAIN_CPP
-
 #include <Arduino.h>
-#include "../lib/AnalogInput/AnalogInput.h"
-#include "../lib/Button/Button.h"
-#include "../lib/Can/Can.h"
+#include <optional>
+#include <Adafruit_NeoPixel.h>
+#include <OneButton.h>
+#include "ClutchPaddle/ClutchPaddle.h"
+#include "CanController/CanController.h"
+#include "constants.h"
 
-const int UP = 4;
-const int DOWN = 2;
-const int CLUTCH_RIGHT = 27;
-const int CLUTCH_LEFT = 26;
+AsyncTimer timers;
+Signals signals;
 
-#ifdef NATIVE
-    #include "../test/mock/MockAdafruit_MCP2515.h"
-    #include "../test/mock/MockAdafruit_NeoPixel.h"
+#ifdef PIO_UNIT_TESTING
 
-    using namespace fakeit;
+using namespace fakeit;
 
-    Mock<Adafruit_MCP2515> mockMcp;
-    Mock<Adafruit_NeoPixel> mockPixels;
-    Mock<AnalogInput> mockClutchRight;
-    Mock<AnalogInput> mockClutchLeft;
-    Mock<Button> mockUp;
-    Mock<Button> mockDown;
-    Mock<Can> mockCan;
+// CanController
+Mock<CanController> mockCanController;
+CanController& canController = mockCanController.get();
 
-    Adafruit_MCP2515& mcp = mockMcp.get();
-    Adafruit_NeoPixel& pixels = mockPixels.get();
-    AnalogInput& clutchRight = mockClutchRight.get();
-    AnalogInput& clutchLeft = mockClutchLeft.get();
-    Button& up = mockUp.get();
-    Button& down = mockDown.get();
-    Can& can = mockCan.get();
-    
+// Up
+Mock<OneButton> mockUp;
+OneButton& up = mockUp.get();
+
+// Down
+Mock<OneButton> mockDown;
+OneButton& down = mockDown.get();
+
+// Clutch left
+Mock<ClutchPaddle> mockClutchLeft;
+ClutchPaddle& clutchLeft = mockClutchLeft.get();
+
+// Clutch right
+Mock<ClutchPaddle> mockClutchRight;
+ClutchPaddle& clutchRight = mockClutchRight.get();
+
+// NeoPixel
+Mock<Adafruit_NeoPixel> mockPixels;
+Adafruit_NeoPixel& pixels = mockPixels.get();
+
 #else
-    #include <Adafruit_NeoPixel.h>
 
-    Adafruit_MCP2515 mcp(PIN_CAN_CS);
-    Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
-    AnalogInput clutchRight(256);
-    AnalogInput clutchLeft(256);
-    Button up;
-    Button down;
-    Can can(mcp, clutchRight, clutchLeft, pixels);
+std::optional<MCP2515> mcp;
+Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
+Signals signals;
+CanController canController(*mcp, signals);
+OneButton up;
+OneButton down;    
+ClutchPaddle clutchLeft;
+ClutchPaddle clutchRight;
+
 #endif
 
 void setup() {
-    mcp.begin(1000000);
-    pinMode(20,OUTPUT);
-    digitalWrite(20, HIGH);
+    #ifdef ARDUINO_RP2350
+    mcp.emplace(MCP2515(PIN_SPI0_SS));
+    #endif
+
+    canController.begin();
+
+    // Clutch left
+    clutchLeft.begin(CLUTCH_LEFT, 26, 10, 10);
+    clutchRight.begin(CLUTCH_RIGHT, 26, 10, 10);
+
+    // Up
+    up.setup(UP_BUTTON, INPUT_PULLUP);
+    up.setDebounceMs(5);
+    up.attachPress([]() {
+        signals.onButton(UP);
+    });
+
+    // Down
+    down.setup(DOWN_BUTTON, INPUT_PULLUP);
+    down.setDebounceMs(5);
+    down.attachPress([]() {
+        signals.onButton(DOWN);
+    });
+
+    pinMode(NEOPIXEL_POWER, OUTPUT);
+    digitalWrite(NEOPIXEL_POWER, HIGH);
     pixels.begin();
 
-    clutchRight.begin(CLUTCH_RIGHT);
-    clutchRight.minDeadzone(10);
-    clutchRight.maxDeadzone(20);
-
-    clutchLeft.begin(CLUTCH_LEFT);
-    clutchLeft.minDeadzone(10);
-    clutchLeft.maxDeadzone(20);
-
-    up.begin(UP);
-    down.begin(DOWN);
+    timers.setInterval([&]() {
+        auto color = signals.offline ? RED : GREEN;
+        pixels.setPixelColor(0, color);
+        pixels.show();
+    }, 200);
 }
 
 void loop() {
-    can.update();
-    can.updateLed();
-    
-    // Handle input
-    up.update();
-    down.update();
-    clutchRight.update();
+    up.tick();
+    down.tick();
+
     clutchLeft.update();
+    clutchRight.update();
 
-    if(up.pressed()) {
-        can.broadcast(true, false, clutchRight.travel(), clutchLeft.travel());
-    } else if(down.pressed()) {
-        can.broadcast(false, true, clutchRight.travel(), clutchLeft.travel());
-    } else {
-        // Broadcast clutch every 10 ms
-        static unsigned long lastBroadastTime = 0;
-        if(millis() - lastBroadastTime >= 10) {
-            can.broadcast(false, false, clutchRight.travel(), clutchLeft.travel());
-            lastBroadastTime = millis();
-        }
-    }
+    signals.clutchLeft = clutchLeft.travel();
+    signals.clutchRight = clutchRight.travel();
+
+    signals.clutchLeftRaw = clutchLeft.readingRaw();
+    signals.clutchRightRaw = clutchRight.readingRaw();
+
+    canController.update();
+
+    timers.handle();
 }
-
-#endif
