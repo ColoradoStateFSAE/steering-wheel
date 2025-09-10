@@ -8,14 +8,14 @@
 
 #ifdef PIO_UNIT_TESTING
 
-#define NEOPIXEL_POWER 20
 #define PIN_NEOPIXEL 21
+#define NEOPIXEL_POWER 20
 
 #endif
 
-#define GREEN 0x008c00
-#define ORANGE 0xffa500
-#define RED 0xff0000
+const uint32_t GREEN = 0x008c00;
+const uint32_t ORANGE = 0xffa500;
+const uint32_t RED = 0xff0000;
 
 typedef enum {
     UP = SWC_BUTTONS_SHIFT_DIRECTION_UP_CHOICE,

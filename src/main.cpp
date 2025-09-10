@@ -50,7 +50,7 @@ ClutchPaddle clutchRight;
 #endif
 
 void setup() {
-    #ifdef ARDUINO_RP2350
+    #ifdef ARDUINO_ARCH_RP2040
     mcp.emplace(MCP2515(PIN_SPI0_SS));
     #endif
 

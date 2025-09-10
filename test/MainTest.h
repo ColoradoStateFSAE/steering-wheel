@@ -6,6 +6,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "ClutchPaddle/ClutchPaddle.h"
 #include "CanController/CanController.h"
+#include "../src/constants.h"
 
 using namespace std;
 using namespace fakeit;
@@ -30,8 +31,6 @@ protected:
 
     void SetUp() override {
         ArduinoFakeReset();
-        // timers = AsyncTimer();
-        // signals = Signals();
         mockCanController.ClearInvocationHistory();
         mockPixels.ClearInvocationHistory();
         mockUp.ClearInvocationHistory();
@@ -135,13 +134,13 @@ TEST_F(MainTest, pixels) {
         loop();
     }
 
-    Verify(Method(mockPixels, setPixelColor).Using(0, 0x008c00)).Exactly(5);
+    Verify(Method(mockPixels, setPixelColor).Using(0, GREEN)).Exactly(5);
     Verify(Method(mockPixels, show)).Exactly(5);
 
     signals.offline = true;
     time += 200;
     loop();
-    Verify(Method(mockPixels, setPixelColor).Using(0, 0xff0000)).Exactly(1);
+    Verify(Method(mockPixels, setPixelColor).Using(0, RED)).Exactly(1);
 }
 
 #endif
