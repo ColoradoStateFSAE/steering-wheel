@@ -56,7 +56,7 @@ void setup() {
 
     canController.begin();
 
-    // Clutch left
+    // Clutch
     clutchLeft.begin(CLUTCH_LEFT, 26, 10, 10);
     clutchRight.begin(CLUTCH_RIGHT, 26, 10, 10);
 
