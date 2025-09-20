@@ -20,7 +20,6 @@ void CanController::update() {
     can_frame msg;
     if(mcp.readMessage(&msg) == MCP2515::ERROR_OK) {
         lastUpdateTime = millis();
-
     }
 
     signals.offline = millis() - lastUpdateTime >= 100;

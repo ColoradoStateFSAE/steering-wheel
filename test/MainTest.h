@@ -121,7 +121,7 @@ TEST_F(MainTest, loop) {
     );
 
     ASSERT_EQ(signals.clutchLeft, 55);
-    ASSERT_EQ(signals.clutchRight, 30);
+    ASSERT_EQ(signals.clutchRight, 0);
 
     ASSERT_EQ(signals.clutchLeftRaw, 300);
     ASSERT_EQ(signals.clutchRightRaw, 500);

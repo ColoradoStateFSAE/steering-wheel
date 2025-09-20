@@ -51,7 +51,7 @@ ClutchPaddle clutchRight;
 
 void setup() {
     #ifdef ARDUINO_ARCH_RP2040
-    mcp.emplace(MCP2515(PIN_SPI0_SS));
+    mcp.emplace(MCP2515(PIN_CAN_CS));
     #endif
 
     canController.begin();
@@ -93,7 +93,7 @@ void loop() {
     clutchRight.update();
 
     signals.clutchLeft = clutchLeft.travel();
-    signals.clutchRight = clutchRight.travel();
+    signals.clutchRight = 0;
 
     signals.clutchLeftRaw = clutchLeft.readingRaw();
     signals.clutchRightRaw = clutchRight.readingRaw();
