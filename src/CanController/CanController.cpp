@@ -23,7 +23,6 @@ void CanController::update() {
     }
 
     signals.offline = millis() - lastUpdateTime >= 100;
-
     timers.handle();
 }
 

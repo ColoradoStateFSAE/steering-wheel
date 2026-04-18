@@ -3,7 +3,7 @@
 #include "constants.h"
 
 struct Signals {
-    bool offline = true;
+    bool offline = false;
 
     float clutchLeft = 0;
     float clutchRight = 0;

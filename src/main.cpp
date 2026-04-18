@@ -2,8 +2,10 @@
 #include <optional>
 #include <Adafruit_NeoPixel.h>
 #include <OneButton.h>
+#include <ClickEncoder.h>
 #include "ClutchPaddle/ClutchPaddle.h"
 #include "CanController/CanController.h"
+#include "Rotary/Rotary.h"
 #include "constants.h"
 
 AsyncTimer timers;
@@ -40,50 +42,76 @@ Adafruit_NeoPixel& pixels = mockPixels.get();
 #else
 
 std::optional<MCP2515> mcp;
-Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixels(3, 13, NEO_GRB + NEO_KHZ800);
 CanController canController(*mcp, signals);
 OneButton up;
-OneButton down;    
+OneButton down;
+OneButton encoderButton;
+
 ClutchPaddle clutchLeft;
 ClutchPaddle clutchRight;
+
+Rotary rotaryLeft(30);
+Rotary rotaryRight(0);
 
 #endif
 
 void setup() {
     #ifdef ARDUINO_ARCH_RP2040
-    mcp.emplace(MCP2515(PIN_CAN_CS));
+    mcp.emplace(MCP2515(CAN_CS));
     #endif
 
     canController.begin();
+
+    pixels.begin();
+    pixels.setBrightness(100);
 
     // Clutch
     clutchLeft.begin(CLUTCH_LEFT, 26, 10, 10);
     clutchRight.begin(CLUTCH_RIGHT, 26, 10, 10);
 
     // Up
-    up.setup(UP_BUTTON, INPUT_PULLUP);
+    up.setup(UP_BUTTON, INPUT_PULLUP, true);
     up.setDebounceMs(5);
     up.attachPress([]() {
         signals.onButton(UP);
     });
 
     // Down
-    down.setup(DOWN_BUTTON, INPUT_PULLUP);
+    down.setup(DOWN_BUTTON, INPUT_PULLUP, true);
     down.setDebounceMs(5);
     down.attachPress([]() {
         signals.onButton(DOWN);
     });
 
-    pinMode(NEOPIXEL_POWER, OUTPUT);
-    digitalWrite(NEOPIXEL_POWER, HIGH);
-    pixels.begin();
+    // Encoder button
+    encoderButton.setup(21, INPUT_PULLUP, true);
+    encoderButton.setDebounceMs(5);
+    encoderButton.attachPress([]() {
+        Serial.println("Encoder");
+    });
 
     timers.setInterval([&]() {
-        auto color = signals.offline ? RED : GREEN;
+        uint32_t color = signals.offline ? 0xFF0000 : 0x00FF00;
         pixels.setPixelColor(0, color);
         pixels.show();
+
+        Serial.print(signals.offline);
+        Serial.print(" ");
+        Serial.println(color, HEX);
     }, 200);
+
+    rotaryLeft.begin();
+    rotaryRight.begin();
+
+    pinMode(22, INPUT_PULLUP);
+    pinMode(23, INPUT_PULLUP);
 }
+
+ClickEncoder encoder(22, 23, 21, 1, LOW);
+
+float lastLeft = rotaryLeft.position();
+float lastRight = rotaryRight.position();
 
 void loop() {
     up.tick();
@@ -101,4 +129,22 @@ void loop() {
     canController.update();
 
     timers.handle();
+
+    encoder.service();
+
+    int16_t delta = encoder.getIncrement();
+    if (delta != 0) {
+        Serial.print("Increment: ");
+        Serial.print(delta);
+        Serial.print("  |  Total: ");
+        Serial.println(encoder.getAccumulate());
+    }
+
+    if(rotaryLeft.position() != lastLeft || rotaryRight.position() != lastRight) {
+        lastLeft = rotaryLeft.position();
+        lastRight = rotaryRight.position();
+        Serial.print(lastLeft);
+        Serial.print(", ");
+        Serial.println(lastRight);
+    }
 }
