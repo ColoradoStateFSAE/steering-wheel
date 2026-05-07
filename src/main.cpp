@@ -64,7 +64,10 @@ void setup() {
     canController.begin();
 
     pixels.begin();
-    pixels.setBrightness(100);
+    pixels.setBrightness(127);
+    
+    // ADC resolution
+    analogReadResolution(12);
 
     // Clutch
     clutchLeft.begin(CLUTCH_LEFT, 26, 10, 10);
@@ -95,10 +98,6 @@ void setup() {
         uint32_t color = signals.offline ? 0xFF0000 : 0x00FF00;
         pixels.setPixelColor(0, color);
         pixels.show();
-
-        Serial.print(signals.offline);
-        Serial.print(" ");
-        Serial.println(color, HEX);
     }, 200);
 
     rotaryLeft.begin();
@@ -138,13 +137,5 @@ void loop() {
         Serial.print(delta);
         Serial.print("  |  Total: ");
         Serial.println(encoder.getAccumulate());
-    }
-
-    if(rotaryLeft.position() != lastLeft || rotaryRight.position() != lastRight) {
-        lastLeft = rotaryLeft.position();
-        lastRight = rotaryRight.position();
-        Serial.print(lastLeft);
-        Serial.print(", ");
-        Serial.println(lastRight);
     }
 }
