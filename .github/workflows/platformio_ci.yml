@@ -1,14 +1,14 @@
 name: PlatformIO CI
 
-on: ["push", "pull_request"]
+on:
+  push:
+  pull_request:
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Cache PlatformIO dependencies
         uses: actions/cache@v4
@@ -18,27 +18,48 @@ jobs:
             ~/.platformio/.cache
           key: ${{ runner.os }}-pio
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.13.1'
 
       - name: Install dependencies
-        run: |
-          pip install --upgrade platformio gcovr coveralls
-      - name: Compile for Pico
-        run: pio run -e pico
-        
+        run: pip install --upgrade platformio gcovr coveralls
+
       - name: Run tests
         run: pio test -v -e test
 
-      - name: Generate coverage Report
+      - name: Generate coverage report
         run: |
           gcovr -r . --coveralls -o coverage.json \
             --exclude ".pio" \
             --exclude "test"
+
       - name: Upload to Coveralls
         uses: coverallsapp/github-action@v2
         with:
           files: coverage.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-feather:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request' && github.base_ref == 'main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.1'
+
+      - name: Install dependencies
+        run: pip install --upgrade platformio
+
+      - name: Compile for RP2040 CAN Bus Feather
+        run: pio run -e feather_can

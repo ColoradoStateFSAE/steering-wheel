@@ -1,9 +1,8 @@
-#ifdef NATIVE
+#ifdef PIO_UNIT_TESTING
 
 #include <gtest/gtest.h>
-#include "AnalogInputTest.h"
-#include "ButtonTest.h"
-#include "CanTest.h"
+#include "ClutchPaddleTest.h"
+#include "CanControllerTest.h"
 #include "MainTest.h"
 
 int main(int argc, char** argv) {

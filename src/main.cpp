@@ -1,90 +1,143 @@
-#ifndef MAIN_CPP
-#define MAIN_CPP
-
 #include <Arduino.h>
-#include "../lib/AnalogInput/AnalogInput.h"
-#include "../lib/Button/Button.h"
-#include "../lib/Can/Can.h"
+#include <optional>
+#include <Adafruit_NeoPixel.h>
+#include <OneButton.h>
+#include <ClickEncoder.h>
+#include "ClutchPaddle/ClutchPaddle.h"
+#include "CanController/CanController.h"
+#include "Rotary/Rotary.h"
+#include "constants.h"
 
-const int UP = 4;
-const int DOWN = 2;
-const int CLUTCH_RIGHT = 27;
-const int CLUTCH_LEFT = 26;
+AsyncTimer timers;
+Signals signals;
 
-#ifdef NATIVE
-    #include "../test/mock/MockAdafruit_MCP2515.h"
-    #include "../test/mock/MockAdafruit_NeoPixel.h"
+#ifdef PIO_UNIT_TESTING
 
-    using namespace fakeit;
+using namespace fakeit;
 
-    Mock<Adafruit_MCP2515> mockMcp;
-    Mock<Adafruit_NeoPixel> mockPixels;
-    Mock<AnalogInput> mockClutchRight;
-    Mock<AnalogInput> mockClutchLeft;
-    Mock<Button> mockUp;
-    Mock<Button> mockDown;
-    Mock<Can> mockCan;
+// CanController
+Mock<CanController> mockCanController;
+CanController& canController = mockCanController.get();
 
-    Adafruit_MCP2515& mcp = mockMcp.get();
-    Adafruit_NeoPixel& pixels = mockPixels.get();
-    AnalogInput& clutchRight = mockClutchRight.get();
-    AnalogInput& clutchLeft = mockClutchLeft.get();
-    Button& up = mockUp.get();
-    Button& down = mockDown.get();
-    Can& can = mockCan.get();
-    
+// Up
+Mock<OneButton> mockUp;
+OneButton& up = mockUp.get();
+
+// Down
+Mock<OneButton> mockDown;
+OneButton& down = mockDown.get();
+
+// Clutch left
+Mock<ClutchPaddle> mockClutchLeft;
+ClutchPaddle& clutchLeft = mockClutchLeft.get();
+
+// Clutch right
+Mock<ClutchPaddle> mockClutchRight;
+ClutchPaddle& clutchRight = mockClutchRight.get();
+
+// NeoPixel
+Mock<Adafruit_NeoPixel> mockPixels;
+Adafruit_NeoPixel& pixels = mockPixels.get();
+
 #else
-    #include <Adafruit_NeoPixel.h>
 
-    Adafruit_MCP2515 mcp(PIN_CAN_CS);
-    Adafruit_NeoPixel pixels(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
-    AnalogInput clutchRight(256);
-    AnalogInput clutchLeft(256);
-    Button up;
-    Button down;
-    Can can(mcp, clutchRight, clutchLeft, pixels);
+std::optional<MCP2515> mcp;
+Adafruit_NeoPixel pixels(3, 13, NEO_GRB + NEO_KHZ800);
+CanController canController(*mcp, signals);
+OneButton up;
+OneButton down;
+OneButton left;
+OneButton right;
+OneButton encoderButton;
+
+ClutchPaddle clutchLeft;
+ClutchPaddle clutchRight;
+
+Rotary rotaryLeft(30);
+Rotary rotaryRight(0);
+
 #endif
 
 void setup() {
-    mcp.begin(1000000);
-    pinMode(20,OUTPUT);
-    digitalWrite(20, HIGH);
+    #ifdef ARDUINO_ARCH_RP2040
+    mcp.emplace(MCP2515(CAN_CS));
+    #endif
+
+    canController.begin();
+
     pixels.begin();
+    pixels.setBrightness(127);
+    
+    // ADC resolution
+    analogReadResolution(12);
 
-    clutchRight.begin(CLUTCH_RIGHT);
-    clutchRight.minDeadzone(10);
-    clutchRight.maxDeadzone(20);
+    // Clutch
+    clutchLeft.begin(CLUTCH_LEFT, 26, 10, 10);
+    clutchRight.begin(CLUTCH_RIGHT, 26, 10, 10);
 
-    clutchLeft.begin(CLUTCH_LEFT);
-    clutchLeft.minDeadzone(10);
-    clutchLeft.maxDeadzone(20);
+    // Up
+    up.setup(UP_BUTTON, INPUT_PULLUP, true);
+    up.setDebounceMs(5);
+    up.attachPress([]() {
+        signals.onButton(UP);
+    });
 
-    up.begin(UP);
-    down.begin(DOWN);
+    // Down
+    down.setup(DOWN_BUTTON, INPUT_PULLUP, true);
+    down.setDebounceMs(5);
+    down.attachPress([]() {
+        signals.onButton(DOWN);
+    });
+
+    left.setup(25, INPUT_PULLUP, true);
+    left.setDebounceMs(5);
+    left.attachPress([]() {
+        signals.onEncoder(false, -1);
+    });
+
+    right.setup(24, INPUT_PULLUP, true);
+    right.setDebounceMs(5);
+    right.attachPress([]() {
+        signals.onEncoder(false, 1);
+    });
+
+    // Encoder button
+    encoderButton.setup(21, INPUT_PULLUP, true);
+    encoderButton.setDebounceMs(5);
+    encoderButton.attachPress([]() {
+        signals.onEncoder(true, 0);
+    });
+
+    timers.setInterval([&]() {
+        uint32_t color = signals.offline ? 0xFF0000 : 0x00FF00;
+        pixels.setPixelColor(0, color);
+        pixels.show();
+    }, 200);
+
+    rotaryLeft.begin();
+    rotaryRight.begin();
 }
 
 void loop() {
-    can.update();
-    can.updateLed();
-    
-    // Handle input
-    up.update();
-    down.update();
-    clutchRight.update();
+    up.tick();
+    down.tick();
+    left.tick();
+    right.tick();
+    encoderButton.tick();
+
     clutchLeft.update();
+    clutchRight.update();
 
-    if(up.pressed()) {
-        can.broadcast(true, false, clutchRight.travel(), clutchLeft.travel());
-    } else if(down.pressed()) {
-        can.broadcast(false, true, clutchRight.travel(), clutchLeft.travel());
-    } else {
-        // Broadcast clutch every 10 ms
-        static unsigned long lastBroadastTime = 0;
-        if(millis() - lastBroadastTime >= 10) {
-            can.broadcast(false, false, clutchRight.travel(), clutchLeft.travel());
-            lastBroadastTime = millis();
-        }
-    }
+    signals.clutchLeft = clutchLeft.travel();
+    signals.clutchRight = clutchRight.travel();
+
+    signals.clutchLeftRaw = clutchLeft.readingRaw();
+    signals.clutchRightRaw = clutchRight.readingRaw();
+
+    canController.update();
+
+    timers.handle();
+
+    signals.rotaryLeftVolts = (rotaryLeft.position()) / 10.0;
+    signals.rotaryRightVolts = (rotaryRight.position()) / 10.0;
 }
-
-#endif
