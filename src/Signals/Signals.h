@@ -11,6 +11,9 @@ struct Signals {
     float clutchLeftRaw = 0;
     float clutchRightRaw = 0;
 
+    float rotaryLeftVolts = 0;
+    float rotaryRightVolts = 0;
+
     std::function<void(ShiftDirection)> onButton = [](ShiftDirection) {};
-    std::function<void(ShiftDirection)> onEncoder = [](ShiftDirection) {};
+    std::function<void(bool, int)> onEncoder = [](bool, int) {};
 };

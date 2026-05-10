@@ -46,6 +46,8 @@ Adafruit_NeoPixel pixels(3, 13, NEO_GRB + NEO_KHZ800);
 CanController canController(*mcp, signals);
 OneButton up;
 OneButton down;
+OneButton left;
+OneButton right;
 OneButton encoderButton;
 
 ClutchPaddle clutchLeft;
@@ -87,11 +89,23 @@ void setup() {
         signals.onButton(DOWN);
     });
 
+    left.setup(25, INPUT_PULLUP, true);
+    left.setDebounceMs(5);
+    left.attachPress([]() {
+        signals.onEncoder(false, -1);
+    });
+
+    right.setup(24, INPUT_PULLUP, true);
+    right.setDebounceMs(5);
+    right.attachPress([]() {
+        signals.onEncoder(false, 1);
+    });
+
     // Encoder button
     encoderButton.setup(21, INPUT_PULLUP, true);
     encoderButton.setDebounceMs(5);
     encoderButton.attachPress([]() {
-        Serial.println("Encoder");
+        signals.onEncoder(true, 0);
     });
 
     timers.setInterval([&]() {
@@ -102,25 +116,20 @@ void setup() {
 
     rotaryLeft.begin();
     rotaryRight.begin();
-
-    pinMode(22, INPUT_PULLUP);
-    pinMode(23, INPUT_PULLUP);
 }
-
-ClickEncoder encoder(22, 23, 21, 1, LOW);
-
-float lastLeft = rotaryLeft.position();
-float lastRight = rotaryRight.position();
 
 void loop() {
     up.tick();
     down.tick();
+    left.tick();
+    right.tick();
+    encoderButton.tick();
 
     clutchLeft.update();
     clutchRight.update();
 
     signals.clutchLeft = clutchLeft.travel();
-    signals.clutchRight = 0;
+    signals.clutchRight = clutchRight.travel();
 
     signals.clutchLeftRaw = clutchLeft.readingRaw();
     signals.clutchRightRaw = clutchRight.readingRaw();
@@ -129,13 +138,6 @@ void loop() {
 
     timers.handle();
 
-    encoder.service();
-
-    int16_t delta = encoder.getIncrement();
-    if (delta != 0) {
-        Serial.print("Increment: ");
-        Serial.print(delta);
-        Serial.print("  |  Total: ");
-        Serial.println(encoder.getAccumulate());
-    }
+    signals.rotaryLeftVolts = (rotaryLeft.position()) / 10.0;
+    signals.rotaryRightVolts = (rotaryRight.position()) / 10.0;
 }

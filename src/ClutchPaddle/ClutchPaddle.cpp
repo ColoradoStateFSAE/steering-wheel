@@ -22,7 +22,7 @@ void ClutchPaddle::update() {
 
 float ClutchPaddle::travel() {
     int range = abs(readingMax - readingMin);
-    if(range < 100) return 0;
+    if(range < 1000) return 0;
 
     float percentage = map<float>(reading, readingMin, readingMax, limitMin, limitMax);
 

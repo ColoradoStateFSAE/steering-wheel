@@ -22,5 +22,7 @@ class CanController {
     unsigned long lastUpdateTime = 0;
 
     void SEND_MESSAGE_H(swc_clutch);
+    void SEND_MESSAGE_H(haltech_io12a_avi);
     void sendShift(ShiftDirection direction);
+    void sendEncoder(bool button, int amount);
 };
