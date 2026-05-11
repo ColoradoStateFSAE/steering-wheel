@@ -53,8 +53,8 @@ OneButton encoderButton;
 ClutchPaddle clutchLeft;
 ClutchPaddle clutchRight;
 
-Rotary rotaryLeft(30);
-Rotary rotaryRight(0);
+Rotary rotaryLeft(30, -2);
+Rotary rotaryRight(0, 2);
 
 #endif
 

@@ -7,12 +7,14 @@ void Rotary::begin() {
 }
 
 int Rotary::position() {
+    _lastPosition = -1;
+
     for (int i = 0; i < 10; i++) {
         if (digitalRead(_basePin + i) == LOW) {
-            _lastPosition = i + 1;
+            _lastPosition = i;
             break;
         }
     }
 
-    return _lastPosition;
+    return (_lastPosition + _offset + 10) % 10;
 }

@@ -46,8 +46,13 @@ void CanController::SEND_MESSAGE(swc_clutch) {
 }
 
 void CanController::SEND_MESSAGE(haltech_io12a_avi) {
-    ENCODE_SIGNAL(haltech_io12a_avi, avi1_voltage, signals.rotaryLeftVolts);
-    ENCODE_SIGNAL(haltech_io12a_avi, avi2_voltage, signals.rotaryRightVolts);
+    float rotaryLeftVolts = signals.rotaryLeftVolts;
+    float rotaryRightVolts = signals.rotaryRightVolts;
+
+    if(rotaryLeftVolts < 0 || rotaryRightVolts < 0) return;
+
+    ENCODE_SIGNAL(haltech_io12a_avi, avi1_voltage, rotaryLeftVolts);
+    ENCODE_SIGNAL(haltech_io12a_avi, avi2_voltage, rotaryRightVolts);
 
     INIT_FRAME(haltech_io12a_avi);
     PACK_MESSAGE(haltech_io12a_avi, haltech_io12a_avi_frame.data);

@@ -3,9 +3,10 @@
 
 class Rotary {
     int _basePin;
-    int _lastPosition = -1;
+    int _offset = 0;
+    int _lastPosition;
 public:
-    Rotary(int basePin) : _basePin(basePin) {}
+    Rotary(int basePin, int offset=0) : _basePin(basePin), _offset(offset){}
     void begin();
     int position();
 };
